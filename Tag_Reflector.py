@@ -24,7 +24,7 @@ else : # 아니면
     window = QWidget()
     QMessageBox.information(window, '알림', 'tag_settings.csv 파일을 생성했습니다.')
     window.show()
-    exit()
+    
 
 def is_number(n):
     try:
@@ -234,8 +234,8 @@ class MyApp(QWidget):
             if not tags : continue
             for tag in tags :
                 # 정상적인 내용이 있으면 원복
-                if re.search(r'⌦span style="color:#[a-zA-z0-9]{6}"⌫|⌦span"⌫', tag) :
-                    new_text.replace('⌦', '<').replace('⌫', '>')
+                if re.search(r'⌦span style="color:#[a-zA-z0-9]{6}"⌫|⌦span⌫', tag) :
+                    new_text = new_text.replace('⌦', '<').replace('⌫', '>')
 
                 elif remain and ('~' not in remain) :
                     new_text = new_text.replace(tag, remain)

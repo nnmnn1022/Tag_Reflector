@@ -1,5 +1,7 @@
 ﻿아래 셀에 태그를 입력하세요.,"아래 셀에 #을 제외한 색상이 있는 위치
 또는 색상코드 또는 원하는 기능을 입력하세요."
+"Background Color",#D8D8D8
+"Global Font Color",White
 "<[a-zA-Z ]+=""#[a-zA-Z_]+"">",24~-2
 "<[a-zA-Z ]+=""#[a-fA-F0-9]{6}"">",14~-2
 <[a-zA-Z ]+=#[a-fA-F0-9]{6}>,8~-1
@@ -11,6 +13,7 @@
 <[a-zA-Z0-9]{6}>,1~-1
 \[[eE]nemy\],"<span style=""color:red"">"
 \[[aA]lly\],"<span style=""color:lightgreen"">"
+<span>,<span>
 \[-\],</span>
 </>,</span>
 </color>,</span>

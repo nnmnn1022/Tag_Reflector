@@ -4,18 +4,26 @@ import re
 import os
 import csv
 import pathlib
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QTextEdit, QTextBrowser, QLabel
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QTextEdit, QTextBrowser, QLabel, QMessageBox
 from PyQt5.QtGui import QIcon, QFont
 from PyQt5.QtCore import *
 import writeFile
 
+# Settings 가져오기
 setting_file = f'{str(pathlib.Path.cwd())}/tag_settings.csv'
 if os.path.isfile(setting_file) : # setting_file이라는 파일이 있으면 읽기
     with open(setting_file, 'r', encoding='utf-8-sig') as csvFile:
-        tag_setting = list(csv.reader(csvFile))[1:]
-        #  quotechar='"', delimiter=','
+        settings = list(csv.reader(csvFile))
+        bg_color = settings[1][1]
+        global_color = settings[2][1]
+        tag_setting = settings[3:]
+
 else : # 아니면
-    writeFile.run([['아래 셀에 태그(정규표현식)를 입력하세요.', '아래 셀에 #을 제외한 색상코드가 있는 위치\n 또는 색상코드 또는 원하는 기능을 입력하세요.']], 'tag_settings') # setting_file 파일을 만든다.
+    writeFile.run([['아래 셀에 태그(정규표현식)를 입력하세요.', '아래 셀에 #을 제외한 색상코드가 있는 위치\n 또는 색상코드 또는 원하는 기능을 입력하세요.'],['"Background Color"',"#D8D8D8"],['"Global Font Color"',"White"]], 'tag_settings') # setting_file 파일을 만든다.
+    app = QApplication([])
+    window = QWidget()
+    QMessageBox.information(window, '알림', 'tag_settings.csv 파일을 생성했습니다.')
+    window.show()
     exit()
 
 def is_number(n):
@@ -36,6 +44,8 @@ class MyApp(QWidget):
         super().__init__()
         self.initUI()
 
+    def getSettings(self):
+        pass
 
     def initUI(self):
 
@@ -61,14 +71,14 @@ class MyApp(QWidget):
         self.textField_output = QTextBrowser()
         self.textField_output.setAcceptRichText(True)
         self.textField_output.setOpenExternalLinks(True)
-        self.textField_output.setStyleSheet("background-color: #D8D8D8")
+        self.textField_output.setStyleSheet(f"background-color: {bg_color}")
         self.textField_output.setFont(font)
 
         #출력창2
         self.textField_output2 = QTextBrowser()
         self.textField_output2.setAcceptRichText(True)
         self.textField_output2.setOpenExternalLinks(True)
-        self.textField_output2.setStyleSheet("background-color: #D8D8D8")
+        self.textField_output2.setStyleSheet(f"background-color: {bg_color}")
         self.textField_output2.setFont(font)
 
         # 두 창에서 노출된 캐릭터 수
@@ -92,10 +102,6 @@ class MyApp(QWidget):
         self.textField_input2.textChanged.connect(self.text_changed)
         self.textField_output2.textChanged.connect(self.text_changed)
         self.textField_input2.textChanged.connect(self.append_text)
-
-        # 엔터 버튼
-        # self.enter_btn = QPushButton('Enter')
-        # self.enter_btn.pressed.connect(self.append_text)
 
         # 클리어 버튼
         self.clear_btn = QPushButton('Clear')
@@ -207,27 +213,29 @@ class MyApp(QWidget):
         text = text.replace('\\r\\n', '\n')
         text = text.replace('\\n', '\n')
         text = text.replace('\n', '<br>')
+        text = re.sub(r'⌦[bB][rR]\/{0,1}⌫','<br>', text)
         return text
 
     def color_tag(self, text) :
-        new_text = text
+        new_text:str = text
+        new_text = new_text.replace('<', '⌦').replace('>', '⌫')
+        color_code_rgx1 = re.compile(r'#[a-fA-F0-9]{6}')
+        color_code_rgx2 = re.compile(r'[a-fA-F0-9]{6}')
+        color_list = ['red','yellow','black','gray','blue','white',
+                      'green','orange','cyan','purple','pink','brown']
         for row in tag_setting :
-            regex_tag = re.compile(row[0])
+            regex_tag = re.compile(row[0].replace('<', '⌦').replace('>', '⌫'))
             remain = row[1]
             if '~' in remain :
                 remain1 = int(remain.split('~')[0])
                 remain2 = int(remain.split('~')[1])
 
-                # if '-' in remain2 : 
-                #     remain2 = -int(remain2)
-                # else :
-                #     remain2 = int(remain)
-
             tags = re.findall(regex_tag, new_text)
             if not tags : continue
             for tag in tags :
-                if re.search('<span style="color:#[a-zA-z0-9]{6}">|</span>', tag) : continue
-                if remain == '\n' : pass
+                # 정상적인 내용이 있으면 원복
+                if re.search(r'⌦span style="color:#[a-zA-z0-9]{6}"⌫|⌦span"⌫', tag) :
+                    new_text.replace('⌦', '<').replace('⌫', '>')
 
                 elif remain and ('~' not in remain) :
                     new_text = new_text.replace(tag, remain)
@@ -235,15 +243,49 @@ class MyApp(QWidget):
                 elif remain2 and is_number(remain2) :
                     # tag에 있는 색상코드만 추출해서 사용
                     # remain1 이상 - remain2 미만
-                    if 'skillinfo' in tag.lower() :
+                    color_code = "".join(tag[remain1:remain2])
+                    # if 'skillinfo' in tag.lower():
+                    #     # 색상코드 확인
+                    if color_code.lower() in color_list:
                         new_text = new_text.replace(tag,
-                                                    f'<span style="color:{"".join(tag[remain1:remain2])}">')
+                                                    f'<span style="color:{color_code}">')
+                    elif color_code_rgx1.match(color_code):
+                        new_text = new_text.replace(tag,
+                                                    f'< style="color:{color_code}">')
+                    elif color_code_rgx2.match(color_code):
+                        new_text = new_text.replace(tag,
+                                                    f'<span style="color:#{color_code}">')
 
-                    else : new_text = new_text.replace(tag,
-                                                f'<span style="color:#{"".join(tag[remain1:remain2])}">')
+        new_text = self.line_break(new_text)
+        new_text = new_text.replace('⌦/span⌫', '</span>')
+        new_text = new_text.replace('⌦', '&lt;').replace('⌫', '&gt;')
 
-        new_text = new_text.replace('\\r\\n', '\n')
-        new_text = new_text.replace('\\n', '\n')
+        tags = re.finditer(r'<[\s\S]+?>', new_text.lower())
+        miss_start = []
+        miss_end = []
+
+        for tag in tags:
+            if re.search(r'<[bB][rR]\/{0,1}>', tag.group()) : continue
+            if '/' in tag.group():
+                if miss_end:
+                    miss_end.pop()
+                else:
+                    miss_start.append(tag)
+            else:
+                miss_end.append(tag)
+
+        no_opening_msg = '<span style="color:red">😡No Opening Tag</span>'
+        no_closing_msg = '<span style="color:red">No Closing Tag😡</span>'
+
+        for miss in miss_start:
+            start, end = miss.start(), miss.end()
+            new_text = new_text[:start] + f' {no_opening_msg} &lt;' + new_text[start+1:end-1] + '&gt;' + new_text[end:]
+
+        for miss in miss_end:
+            start, end = miss.start(), miss.end()
+            new_text = new_text[:start] + '&lt;' + new_text[start+1:end-1] + f'&gt; {no_closing_msg} ' + new_text[end:]
+            
+        new_text = f'<span style="color:{global_color}">' + new_text + '</span>'
         return new_text
 
 

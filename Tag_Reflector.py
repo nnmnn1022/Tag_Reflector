@@ -234,6 +234,42 @@ class MyApp(QWidget):
         text = text.replace('\n', '<br>')
         text = re.sub(r'⌦[bB][rR]\/{0,1}⌫','<br>', text)    
         return text
+    
+    def checkTagPairs(self, text:str, isStart:bool=True):
+        tags = re.finditer(r'<[\s\S]+?>', text)
+        miss_start = []
+        miss_end = []
+
+        for tag in tags:
+            if re.search(r'<[bB][rR]\/{0,1}>', tag.group()) : continue
+            if '/' in tag.group():
+                if miss_end:
+                    miss_end.pop()
+                else:
+                    miss_start.append(tag)
+            else:
+                miss_end.append(tag)
+
+        if isStart:
+            no_opening_msg = '<span style="color:red">😡No Opening Tag</span>'
+            new_text = ""
+            last_end = 0
+            for match in miss_start:
+                new_text += text[last_end:match.start()]
+                new_text += f' {no_opening_msg} &lt;' + match.group()[1:-1] + '&gt;'
+                last_end = match.end()
+            new_text += text[last_end:]
+        else:
+            no_closing_msg = '<span style="color:red">No Closing Tag😡</span>'
+            new_text = ""
+            last_end = 0
+            for match in miss_end:
+                new_text += text[last_end:match.start()]
+                new_text += '&lt;' + match.group()[1:-1] + f'&gt; {no_closing_msg} '
+                last_end = match.end()
+            new_text += text[last_end:]
+
+        return new_text
 
     def color_tag(self, text) :
         new_text:str = text
@@ -279,52 +315,8 @@ class MyApp(QWidget):
         new_text = new_text.replace('⌦/span⌫', '</span>')
         new_text = new_text.replace('⌦', '&lt;').replace('⌫', '&gt;')
 
-        tags = re.finditer(r'<[\s\S]+?>', new_text.lower())
-        miss_start = []
-        miss_end = []
-
-        for tag in tags:
-            if re.search(r'<[bB][rR]\/{0,1}>', tag.group()) : continue
-            if '/' in tag.group():
-                if miss_end:
-                    miss_end.pop()
-                else:
-                    miss_start.append(tag)
-            else:
-                miss_end.append(tag)
-
-        no_opening_msg = '<span style="color:red">😡No Opening Tag</span>'
-        no_closing_msg = '<span style="color:red">No Closing Tag😡</span>'
-
-        for miss in miss_start:
-            start, end = miss.start(), miss.end()
-            new_text = new_text[:start] + f' {no_opening_msg} &lt;' + new_text[start+1:end-1] + '&gt;' + new_text[end:]
-
-        for miss in miss_end:
-            start, end = miss.start(), miss.end()
-            new_text = new_text[:start] + '&lt;' + new_text[start+1:end-1] + f'&gt; {no_closing_msg} ' + new_text[end:]
-            
-        new_text = f'<span style="color:{global_color}">' + new_text + '</span>'
-
-        # last_end = 0
-        # for i, match in enumerate(miss_start):
-        #     new_text += text[last_end:match.start()]
-        #     new_text += f' {no_opening_msg} &lt;' + match.group() + '&gt;'
-        #     last_end = match.end()
-        # new_text += text[last_end:]
-
-        # tags = re.finditer(r'<[\s\S]+?>', new_text.lower())
-
-        # last_end = 0
-        # for i, match in enumerate(miss_end):
-        #     new_text += text[last_end:match.start()]
-        #     new_text += '&lt;' + match.group() + f'&gt; {no_closing_msg} '
-        #     last_end = match.end()
-        # new_text += text[last_end:]
-
-        # for miss in miss_end:
-        #     start, end = miss.start(), miss.end()
-        #     new_text = new_text[:start] + '&lt;' + new_text[start+1:end-1] + f'&gt; {no_closing_msg} ' + new_text[end:]
+        new_text = self.checkTagPairs(new_text, isStart=True)
+        new_text = self.checkTagPairs(new_text, isStart=False)
             
         new_text = f'<span style="color:{global_color}; font-family:{global_font}">' + new_text + '</span>'
         return new_text

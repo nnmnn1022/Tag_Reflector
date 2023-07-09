@@ -44,7 +44,7 @@ else : # 아니면
     window = QWidget()
     QMessageBox.information(window, '알림', 'tag_settings.csv 파일을 생성했습니다.')
     window.show()
-
+    
 def is_number(n):
     try:
         float(n)  

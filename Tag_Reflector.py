@@ -14,17 +14,36 @@ setting_file = f'{str(pathlib.Path.cwd())}/tag_settings.csv'
 if os.path.isfile(setting_file) : # setting_file이라는 파일이 있으면 읽기
     with open(setting_file, 'r', encoding='utf-8-sig') as csvFile:
         settings = list(csv.reader(csvFile))
-        bg_color = settings[1][1]
-        global_color = settings[2][1]
-        tag_setting = settings[3:]
+        bg_color = '#D8D8D8'
+        global_color = 'Black'
+        global_font = 'Tahoma, Arial'
+        tag_setting = []
 
+        settings_list = ['bg_color', 'global_color', 'global_font', 'tag_setting']
+
+        for i, set in enumerate(settings_list):
+            try:
+                if set == 'global_font':
+                    exec(f'{set} = {set} + ", " + settings[{i+1}][1]')
+                elif set == 'tag_setting':
+                    exec(f'{set} = settings[{i+1}:]')
+                else:
+                    exec(f'{set} = settings[{i+1}][1]')
+
+            except IndexError:
+                continue
+            except Exception as e :
+                app = QApplication([])
+                window = QWidget()
+                QMessageBox.warning(window, '오류', 'tag_settings.csv 파일에 이상이 있습니다.')
+                window.show()
+            
 else : # 아니면
-    writeFile.run([['아래 셀에 태그(정규표현식)를 입력하세요.', '아래 셀에 #을 제외한 색상코드가 있는 위치\n 또는 색상코드 또는 원하는 기능을 입력하세요.'],['"Background Color"',"#D8D8D8"],['"Global Font Color"',"White"]], 'tag_settings') # setting_file 파일을 만든다.
+    writeFile.run([['아래 셀에 태그(정규표현식)를 입력하세요.', '아래 셀에 #을 제외한 색상코드가 있는 위치\n 또는 색상코드 또는 원하는 기능을 입력하세요.'],['"Background Color"',"#D8D8D8"],['"Global Font Color"',"White"],['"Global Font"',"Ta"]], 'tag_settings') # setting_file 파일을 만든다.
     app = QApplication([])
     window = QWidget()
     QMessageBox.information(window, '알림', 'tag_settings.csv 파일을 생성했습니다.')
     window.show()
-    exit()
 
 def is_number(n):
     try:
@@ -213,7 +232,7 @@ class MyApp(QWidget):
         text = text.replace('\\r\\n', '\n')
         text = text.replace('\\n', '\n')
         text = text.replace('\n', '<br>')
-        text = re.sub(r'⌦[bB][rR]\/{0,1}⌫','<br>', text)
+        text = re.sub(r'⌦[bB][rR]\/{0,1}⌫','<br>', text)    
         return text
 
     def color_tag(self, text) :
@@ -222,7 +241,7 @@ class MyApp(QWidget):
         color_code_rgx1 = re.compile(r'#[a-fA-F0-9]{6}')
         color_code_rgx2 = re.compile(r'[a-fA-F0-9]{6}')
         color_list = ['red','yellow','black','gray','blue','white',
-                      'green','orange','cyan','purple','pink','brown']
+                      'green','orange','cyan','purple','pink','brown','lightgreen']
         for row in tag_setting :
             regex_tag = re.compile(row[0].replace('<', '⌦').replace('>', '⌫'))
             remain = row[1]
@@ -234,8 +253,8 @@ class MyApp(QWidget):
             if not tags : continue
             for tag in tags :
                 # 정상적인 내용이 있으면 원복
-                if re.search(r'⌦span style="color:#[a-zA-z0-9]{6}"⌫|⌦span"⌫', tag) :
-                    new_text.replace('⌦', '<').replace('⌫', '>')
+                if re.search(r'⌦span style="color:#[a-zA-z0-9]{6}"⌫|⌦span⌫', tag) :
+                    new_text = new_text.replace('⌦', '<').replace('⌫', '>')
 
                 elif remain and ('~' not in remain) :
                     new_text = new_text.replace(tag, remain)
@@ -286,6 +305,28 @@ class MyApp(QWidget):
             new_text = new_text[:start] + '&lt;' + new_text[start+1:end-1] + f'&gt; {no_closing_msg} ' + new_text[end:]
             
         new_text = f'<span style="color:{global_color}">' + new_text + '</span>'
+
+        # last_end = 0
+        # for i, match in enumerate(miss_start):
+        #     new_text += text[last_end:match.start()]
+        #     new_text += f' {no_opening_msg} &lt;' + match.group() + '&gt;'
+        #     last_end = match.end()
+        # new_text += text[last_end:]
+
+        # tags = re.finditer(r'<[\s\S]+?>', new_text.lower())
+
+        # last_end = 0
+        # for i, match in enumerate(miss_end):
+        #     new_text += text[last_end:match.start()]
+        #     new_text += '&lt;' + match.group() + f'&gt; {no_closing_msg} '
+        #     last_end = match.end()
+        # new_text += text[last_end:]
+
+        # for miss in miss_end:
+        #     start, end = miss.start(), miss.end()
+        #     new_text = new_text[:start] + '&lt;' + new_text[start+1:end-1] + f'&gt; {no_closing_msg} ' + new_text[end:]
+            
+        new_text = f'<span style="color:{global_color}; font-family:{global_font}">' + new_text + '</span>'
         return new_text
 
 

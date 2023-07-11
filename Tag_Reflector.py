@@ -53,7 +53,7 @@ else : # 아니면
 def is_number(n):
     try:
         float(n)  
-    except ValueError:
+    except Exception:
         return False
     return True
 
@@ -325,6 +325,7 @@ class MyApp(QWidget):
     def color_tag(self, text) :
         new_text:str = text
         new_text = new_text.replace('<', '⌦').replace('>', '⌫')
+        color_code_rgx0 = re.compile(r'#[a-fA-F0-9]{8}')
         color_code_rgx1 = re.compile(r'#[a-fA-F0-9]{6}')
         color_code_rgx2 = re.compile(r'[a-fA-F0-9]{6}')
         color_list = ['red','yellow','black','gray','blue','white',
@@ -334,7 +335,7 @@ class MyApp(QWidget):
             remain = row[1]
             if '~' in remain :
                 remain1 = int(remain.split('~')[0])
-                remain2 = int(remain.split('~')[1])
+                remain2 = None if remain.split('~')[1] == '' else int(remain.split('~')[1])
 
             tags = re.findall(regex_tag, new_text)
             if not tags : continue
@@ -346,18 +347,20 @@ class MyApp(QWidget):
                 elif remain and ('~' not in remain) :
                     new_text = new_text.replace(tag, remain)
 
-                elif remain2 and is_number(remain2) :
+                elif remain2 == None or (is_number(remain2)) :
                     # tag에 있는 색상코드만 추출해서 사용
                     # remain1 이상 - remain2 미만
                     color_code = "".join(tag[remain1:remain2])
                     # if 'skillinfo' in tag.lower():
-                    #     # 색상코드 확인
-                    if color_code.lower() in color_list:
+                    # 색상코드 확인
+                    if regex_tag == color_code_rgx0:
+                        new_text = new_text.replace(tag, '#' + color_code)
+                    elif color_code.lower() in color_list:
                         new_text = new_text.replace(tag,
                                                     f'<span style="color:{color_code}">')
                     elif color_code_rgx1.match(color_code):
                         new_text = new_text.replace(tag,
-                                                    f'< style="color:{color_code}">')
+                                                    f'<span style="color:{color_code}">')
                     elif color_code_rgx2.match(color_code):
                         new_text = new_text.replace(tag,
                                                     f'<span style="color:#{color_code}">')

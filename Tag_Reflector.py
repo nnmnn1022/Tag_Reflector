@@ -17,14 +17,19 @@ if os.path.isfile(setting_file) : # setting_file이라는 파일이 있으면 �
         bg_color = '#D8D8D8'
         global_color = 'Black'
         global_font = 'Tahoma, Arial'
+        is_allow_overlapping_tags = False
         tag_setting = []
 
-        settings_list = ['bg_color', 'global_color', 'global_font', 'tag_setting']
+        # 반드시 엑셀의 순서와 동일해야 함 1~
+        settings_list = ['bg_color', 'global_color', 'global_font', 'is_allow_overlapping_tags', 'tag_setting']
 
         for i, set in enumerate(settings_list):
             try:
-                if set == 'global_font':
-                    exec(f'{set} = {set} + ", " + settings[{i+1}][1]')
+                if set == 'global_font' and settings[i+1][1]:
+                    exec(f'{set} = settings[{i+1}][1] + ", " + {set}')
+                elif set == 'is_allow_overlapping_tags':
+                    if settings[i+1][1].lower() == 'y' or settings[i+1][1].lower() == 'yes' or settings[i+1][1].lower() == 'true':
+                        exec(f'{set} = True')
                 elif set == 'tag_setting':
                     exec(f'{set} = settings[{i+1}:]')
                 else:
@@ -39,7 +44,7 @@ if os.path.isfile(setting_file) : # setting_file이라는 파일이 있으면 �
                 window.show()
             
 else : # 아니면
-    writeFile.run([['아래 셀에 태그(정규표현식)를 입력하세요.', '아래 셀에 #을 제외한 색상코드가 있는 위치\n 또는 색상코드 또는 원하는 기능을 입력하세요.'],['"Background Color"',"#D8D8D8"],['"Global Font Color"',"White"],['"Global Font"',"Ta"]], 'tag_settings') # setting_file 파일을 만든다.
+    writeFile.run([['아래 셀에 태그(정규표현식)를 입력하세요.', '아래 셀에 #을 제외한 색상코드가 있는 위치\n 또는 색상코드 또는 원하는 기능을 입력하세요.'],['"Background Color"',"#D8D8D8"],['"Global Font Color"',"White"],['"Global Font"',""]], 'tag_settings') # setting_file 파일을 만든다.
     app = QApplication([])
     window = QWidget()
     QMessageBox.information(window, '알림', 'tag_settings.csv 파일을 생성했습니다.')
@@ -235,37 +240,83 @@ class MyApp(QWidget):
         text = re.sub(r'⌦[bB][rR]\/{0,1}⌫','<br>', text)    
         return text
     
-    def checkTagPairs(self, text:str, isStart:bool=True):
+    def checkTagPairs(self, text:str, mode:str='start'):
         tags = re.finditer(r'<[\s\S]+?>', text)
-        miss_start = []
-        miss_end = []
 
-        for tag in tags:
-            if re.search(r'<[bB][rR]\/{0,1}>', tag.group()) : continue
-            if '/' in tag.group():
-                if miss_end:
-                    miss_end.pop()
+        if mode in ['start', 'end']:
+            miss_start = []
+            miss_end = []
+
+            for tag in tags:
+                if re.search(r'<[bB][rR]\/{0,1}>', tag.group()) : continue
+                if '/' in tag.group():
+                    if miss_end:
+                        miss_end.pop()
+                    else:
+                        miss_start.append(tag)
                 else:
-                    miss_start.append(tag)
-            else:
-                miss_end.append(tag)
+                    miss_end.append(tag)
 
-        if isStart:
-            no_opening_msg = '<span style="color:red">😡No Opening Tag</span>'
-            new_text = ""
-            last_end = 0
-            for match in miss_start:
-                new_text += text[last_end:match.start()]
-                new_text += f' {no_opening_msg} &lt;' + match.group()[1:-1] + '&gt;'
-                last_end = match.end()
-            new_text += text[last_end:]
+            if mode == 'start':
+                msg = '<span style="color:red">😡No Opening Tag</span>'
+                new_text = ""
+                last_end = 0
+                for match in miss_start:
+                    new_text += text[last_end:match.start()]
+                    new_text += f' {msg} ⌦' + match.group()[1:-1] + '⌫'
+                    last_end = match.end()
+                new_text += text[last_end:]
+            else:
+                msg = '<span style="color:red">No Closing Tag😡</span>'
+                new_text = ""
+                last_end = 0
+                for match in miss_end:
+                    new_text += text[last_end:match.start()]
+                    new_text += '⌦' + match.group()[1:-1] + f'⌫ {msg} '
+                    last_end = match.end()
+                new_text += text[last_end:]
+        # overlap
         else:
-            no_closing_msg = '<span style="color:red">No Closing Tag😡</span>'
+            overlap = []
+            tag_list = []
+            flag1 = True    # True:여는태그 False:닫는 태그
+            flag2 = True    # 1이 이전, 2는 새로 들어온 태그
+
+            for tag in tags:
+                if re.search(r'<[bB][rR]\/{0,1}>', tag.group()) : continue
+ 
+                # 들어온 tag가 여는태그, 닫는태그인지 확인해서 플래그 주기
+                flag2 = False if '/' in tag.group() else True
+
+                # 앞에서 짝이 안 맞는 태그들은 모두 걸러냈다고 가정
+                # 그러므로 맨 앞에 flag2 = false 일 수 없음
+                # 이미 들어온 게 있을 때
+                if tag_list:
+                    # 여는 태그가 또 들어올 때
+                    if flag1 == flag2:
+                        overlap.append(tag_list.pop())
+                        tag_list.append(tag)
+                    # 닫는 태그가 들어올 때
+                    else:
+                        tag_list.pop()
+                # 들어와 있는 게 없을 때
+                else:
+                    if flag2 == False:
+                        overlap.append(tag)
+                    else:
+                        tag_list.append(tag)
+
+                flag1 = flag2
+
+            msg = '<span style="color:red">Overlapping Tag</span>'
             new_text = ""
             last_end = 0
-            for match in miss_end:
+            for match in overlap:
                 new_text += text[last_end:match.start()]
-                new_text += '&lt;' + match.group()[1:-1] + f'&gt; {no_closing_msg} '
+                if '/' in match.group():
+                    new_text += f'😡{msg} ⌦' + match.group()[1:-1] + '⌫'
+                else:
+                    new_text += '⌦' + match.group()[1:-1] + f'⌫ {msg}😡'
                 last_end = match.end()
             new_text += text[last_end:]
 
@@ -313,11 +364,13 @@ class MyApp(QWidget):
 
         new_text = self.line_break(new_text)
         new_text = new_text.replace('⌦/span⌫', '</span>')
-        new_text = new_text.replace('⌦', '&lt;').replace('⌫', '&gt;')
 
-        new_text = self.checkTagPairs(new_text, isStart=True)
-        new_text = self.checkTagPairs(new_text, isStart=False)
+        new_text = self.checkTagPairs(new_text, mode='start')
+        new_text = self.checkTagPairs(new_text, mode='end')
+        if not is_allow_overlapping_tags:
+            new_text = self.checkTagPairs(new_text, mode='overlap')
             
+        new_text = new_text.replace('⌦', '<span style="color:red">&lt;</span>').replace('⌫', '<span style="color:red">&gt;</span>')
         new_text = f'<span style="color:{global_color}; font-family:{global_font}">' + new_text + '</span>'
         return new_text
 

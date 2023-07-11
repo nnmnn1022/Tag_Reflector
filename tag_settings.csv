@@ -3,6 +3,7 @@
 "Background Color",#D8D8D8
 "Global Font Color",Black
 "Global Font"
+"Allow Overlapping Tags?",Y
 "<[a-zA-Z ]+=""#[a-zA-Z_]+"">",24~-2
 "<[a-zA-Z ]+=""#[a-fA-F0-9]{6}"">",14~-2
 <[a-zA-Z ]+=#[a-fA-F0-9]{6}>,8~-1

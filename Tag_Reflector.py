@@ -57,6 +57,19 @@ def is_number(n):
         return False
     return True
 
+def tag_to_nomal_text(text:str, matches:list, msg:str, is_left:bool=True) -> str:
+    new_text = ""
+    last_end = 0
+    for match in matches:
+        new_text += text[last_end:match.start()]
+        if is_left:
+            new_text += f' {msg} ⌦' + match.group()[1:-1] + '⌫' 
+        else:
+            new_text += '⌦' + match.group()[1:-1] + f'⌫ {msg} ' 
+        last_end = match.end()
+    new_text += text[last_end:]
+    return new_text
+
 def resource_path(relative_path):
     base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
     print(os.path.join(base_path, relative_path))
@@ -80,8 +93,6 @@ class MyApp(QWidget):
         #font
         font = QFont()
         font.setFamily(u"Tahoma")
-        # font.setBold(True)
-        # font.setWeight(75)
 
         # 입력 창
         self.textField_input = QTextEdit()
@@ -156,7 +167,6 @@ class MyApp(QWidget):
         hbox4.addWidget(self.textLabel8)
 
         hbox3 = QHBoxLayout()
-        # hbox3.addWidget(self.enter_btn)
         hbox3.addWidget(self.clear_btn)
 
         # 수직 박스
@@ -175,7 +185,6 @@ class MyApp(QWidget):
         self.setLayout(vbox)
         self.setWindowTitle('Tag Reflector')
         self.resize(1600, 800)
-        # self.center()
         self.show()
 
     def always_on_top(self, aot) :
@@ -209,22 +218,39 @@ class MyApp(QWidget):
 
     def append_text(self):
         try :
+            # 출력창1 데이터
             if len(self.textField_output.toPlainText()) > 0:
                 self.textField_output.clear()
             text = self.textField_input.toPlainText()
             text = self.line_break(text)
             text = self.color_tag(text)
-            self.textField_output.append(text)
 
+            # 출력창2 데이터
             if len(self.textField_output2.toPlainText()) > 0:
                 self.textField_output2.clear()
             text3 = self.textField_input2.toPlainText()
             text3 = self.line_break(text3)
             text3 = self.color_tag(text3)
+
+            if text and text3:
+                text, text3 = self.validate(text, text3)
+            text = self.replace_for_visible_tag(text)
+            text3 = self.replace_for_visible_tag(text3)
+
+            self.textField_output.append(text)
             self.textField_output2.append(text3)
 
         except Exception as e:
             print(e)
+
+    def replace_for_visible_tag(self, text:str):
+        if not text: return text
+        text = re.sub(r'⌦[bB][rR]\/{0,1}⌫','<br>', text)
+        text = text.replace('⨴', '<span style="color:red">').replace('⨵', '</span>')
+        text = text.replace('⌦', '<span style="color:red">&lt;</span>').replace('⌫', '<span style="color:red">&gt;</span>')
+        text = f'<span style="color:{global_color}; font-family:{global_font}">' + text + '</span>'
+        
+        return text
 
     def clear_input_text(self):
         self.textField_input.clear()
@@ -237,7 +263,6 @@ class MyApp(QWidget):
         text = text.replace('\\r\\n', '\n')
         text = text.replace('\\n', '\n')
         text = text.replace('\n', '<br>')
-        text = re.sub(r'⌦[bB][rR]\/{0,1}⌫','<br>', text)    
         return text
     
     def checkTagPairs(self, text:str, mode:str='start'):
@@ -258,23 +283,12 @@ class MyApp(QWidget):
                     miss_end.append(tag)
 
             if mode == 'start':
-                msg = '<span style="color:red">😡No Opening Tag</span>'
-                new_text = ""
-                last_end = 0
-                for match in miss_start:
-                    new_text += text[last_end:match.start()]
-                    new_text += f' {msg} ⌦' + match.group()[1:-1] + '⌫'
-                    last_end = match.end()
-                new_text += text[last_end:]
+                msg = '⨴😡No Opening Tag⨵'
+                new_text = tag_to_nomal_text(text, miss_start, msg)
+
             else:
-                msg = '<span style="color:red">No Closing Tag😡</span>'
-                new_text = ""
-                last_end = 0
-                for match in miss_end:
-                    new_text += text[last_end:match.start()]
-                    new_text += '⌦' + match.group()[1:-1] + f'⌫ {msg} '
-                    last_end = match.end()
-                new_text += text[last_end:]
+                msg = '⨴No Closing Tag😡⨵'
+                new_text = tag_to_nomal_text(text, miss_start, msg, False)
         # overlap
         else:
             overlap = []
@@ -308,7 +322,7 @@ class MyApp(QWidget):
 
                 flag1 = flag2
 
-            msg = '<span style="color:red">Overlapping Tag</span>'
+            msg = '⨴Overlapping Tag⨵'
             new_text = ""
             last_end = 0
             for match in overlap:
@@ -344,6 +358,7 @@ class MyApp(QWidget):
                 if re.search(r'⌦span style="color:#[a-zA-z0-9]{6}"⌫|⌦span⌫', tag) :
                     new_text = new_text.replace('⌦', '<').replace('⌫', '>')
 
+                # 태그를 직접 입력하는 경우
                 elif remain and ('~' not in remain) :
                     new_text = new_text.replace(tag, remain)
 
@@ -372,11 +387,64 @@ class MyApp(QWidget):
         new_text = self.checkTagPairs(new_text, mode='end')
         if not is_allow_overlapping_tags:
             new_text = self.checkTagPairs(new_text, mode='overlap')
-            
-        new_text = new_text.replace('⌦', '<span style="color:red">&lt;</span>').replace('⌫', '<span style="color:red">&gt;</span>')
-        new_text = f'<span style="color:{global_color}; font-family:{global_font}">' + new_text + '</span>'
+
         return new_text
 
+    def validate(self, text, text2):
+
+        # validate
+        def validate_matches(matches:list, only_tags:list):
+            errors = []
+            pre_is_error = False
+            for match in matches:
+                if pre_is_error and '/' in match.group():
+                    errors.append(match)
+                    pre_is_error = False
+                    try:
+                        only_tags.remove(match.group())
+                    except ValueError :
+                        pass
+                else:
+                    # 문자열이 right_tags에 있으면 삭제하고 없으면 left_errors에 값 추가
+                    try:
+                        only_tags.remove(match.group())
+                    except ValueError :
+                        errors.append(match)
+                        pre_is_error = True
+            return errors
+
+        regex = re.compile(r'<.+?>')
+        regex2 = re.compile(r'⌦.+?⌫')
+        br = re.compile(r'<[bB][rR]\/{0,1}>')
+
+        # 태그 데이터 추출
+        left_matches = [m for m in regex.finditer(text)]
+        right_matches = [m for m in regex.finditer(text2)]
+
+        # 다른 오류 나고 있는 태그들도 포함시키기
+        left_error_tags = [m.replace('⌦', '<').replace('⌫', '>') for m in regex2.findall(text) if not br.match(m)]
+        right_error_tags = [m.replace('⌦', '<').replace('⌫', '>') for m in regex2.findall(text2) if not br.match(m)]
+
+        # 태그 내용만 추출
+        left_tags = [m.group() for m in left_matches]
+        left_tags.extend(left_error_tags)
+
+        right_tags = [m.group() for m in right_matches]
+        right_tags.extend(right_error_tags)
+
+        left_errors = validate_matches(left_matches, right_tags)
+        right_errors = validate_matches(right_matches, left_tags)
+        
+
+        msg = '👹<span style="color:red">Not in Other Side</span>'
+        msg2 = '<br><br> ⨴#👹Not in Other Side 오류의 위치는 정확하지 않으며, 해당 태그가 반대쪽에 존재하지 않는다는 것을 의미합니다.⨵'
+
+        text = tag_to_nomal_text(text, left_errors, msg, False)
+        text2 = tag_to_nomal_text(text2, right_errors, msg, False)
+        if left_errors: text += msg2
+        if right_errors: text2 += msg2
+
+        return text, text2
 
 if __name__ == '__main__' :
     app = QApplication(sys.argv)

@@ -393,55 +393,42 @@ class MyApp(QWidget):
     def validate(self, text, text2):
 
         # validate
-        def validate_matches(matches:list, only_tags:list):
+        def validate_matches(tags1:list, tags2:list):
             errors = []
-            pre_is_error = False
-            for match in matches:
-                if pre_is_error and '/' in match.group():
+            for match in tags1:
+                # 문자열이 right_tags에 있으면 삭제하고 없으면 left_errors에 값 추가
+                try:
+                    tags2.remove(match)
+                except ValueError :
                     errors.append(match)
-                    pre_is_error = False
-                    try:
-                        only_tags.remove(match.group())
-                    except ValueError :
-                        pass
-                else:
-                    # 문자열이 right_tags에 있으면 삭제하고 없으면 left_errors에 값 추가
-                    try:
-                        only_tags.remove(match.group())
-                    except ValueError :
-                        errors.append(match)
-                        pre_is_error = True
             return errors
 
         regex = re.compile(r'<.+?>')
-        regex2 = re.compile(r'⌦.+?⌫')
-        br = re.compile(r'<[bB][rR]\/{0,1}>')
+        regex2 = re.compile(r'⌦.*?⌫')
+        br = re.compile(r'⌦[bB][rR]\/{0,1}⌫')
 
         # 태그 데이터 추출
-        left_matches = [m for m in regex.finditer(text)]
-        right_matches = [m for m in regex.finditer(text2)]
+        # left_matches = [m for m in regex.finditer(text)]
+        # right_matches = [m for m in regex.finditer(text2)]
 
         # 다른 오류 나고 있는 태그들도 포함시키기
         left_error_tags = [m.replace('⌦', '<').replace('⌫', '>') for m in regex2.findall(text) if not br.match(m)]
         right_error_tags = [m.replace('⌦', '<').replace('⌫', '>') for m in regex2.findall(text2) if not br.match(m)]
 
         # 태그 내용만 추출
-        left_tags = [m.group() for m in left_matches]
+        left_tags = regex.findall(text)
         left_tags.extend(left_error_tags)
 
-        right_tags = [m.group() for m in right_matches]
+        right_tags = regex.findall(text2)
         right_tags.extend(right_error_tags)
 
-        left_errors = validate_matches(left_matches, right_tags)
-        right_errors = validate_matches(right_matches, left_tags)
+        left_errors = list(map(lambda x: '⌦' + x[1:-1] + '⌫' , validate_matches(left_tags, right_tags)))
+        right_errors = list(map(lambda x: '⌦' + x[1:-1] + '⌫' , validate_matches(right_tags, left_tags)))
         
+        msg1 = f'<br><br> ⨴#오른쪽에 존재하지 않는 태그 목록: {", ".join(left_errors)}⨵'
+        msg2 = f'<br><br> ⨴#왼쪽에 존재하지 않는 태그 목록: {", ".join(right_errors)}⨵'
 
-        msg = '👹<span style="color:red">Not in Other Side</span>'
-        msg2 = '<br><br> ⨴#👹Not in Other Side 오류의 위치는 정확하지 않으며, 해당 태그가 반대쪽에 존재하지 않는다는 것을 의미합니다.⨵'
-
-        text = tag_to_nomal_text(text, left_errors, msg, False)
-        text2 = tag_to_nomal_text(text2, right_errors, msg, False)
-        if left_errors: text += msg2
+        if left_errors: text += msg1
         if right_errors: text2 += msg2
 
         return text, text2

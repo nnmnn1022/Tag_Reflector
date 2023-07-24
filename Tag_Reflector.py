@@ -4,8 +4,8 @@ import re
 import os
 import csv
 import pathlib
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QTextEdit, QTextBrowser, QLabel, QMessageBox
-from PyQt5.QtGui import QIcon, QFont
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QTextEdit, QTextBrowser, QLabel, QMessageBox, QDialog, QLineEdit, QGridLayout, QAction, QShortcut
+from PyQt5.QtGui import QIcon, QFont, QKeySequence, QTextCharFormat, QBrush, QColor, QTextCursor, QTextFormat
 from PyQt5.QtCore import *
 import writeFile
 
@@ -75,6 +75,56 @@ def resource_path(relative_path):
     print(os.path.join(base_path, relative_path))
     return os.path.join(base_path, relative_path)
 
+class FindDialog(QDialog):
+    def __init__(self, textEdit:QTextEdit, parent=None):
+        super(FindDialog, self).__init__(parent)
+        self.textEdit = textEdit
+        self.initUI()
+
+    def initUI(self):
+        self.findLabel = QLabel("Find:", self)
+        self.findLineEdit = QLineEdit(self)
+        self.findButton = QPushButton("Find", self)
+        self.findButton.clicked.connect(self.findText)
+
+        layout = QGridLayout()
+        layout.addWidget(self.findLabel, 0, 0)
+        layout.addWidget(self.findLineEdit, 0, 1)
+        layout.addWidget(self.findButton, 0, 2)
+
+        self.setLayout(layout)
+        self.setWindowTitle("Find")
+
+    def findText(self):
+        strForFind = self.findLineEdit.text()
+
+        # Search for matches in the text edit widget
+        cursor = self.textEdit.textCursor()
+        format = QTextCharFormat()
+        format.setBackground(QBrush(QColor("yellow")))
+        
+        # Clear any previous selections
+        cursor.setPosition(0)
+        cursor.movePosition(QTextCursor.End, 1)
+        cursor.setCharFormat(QTextCharFormat())
+        
+        # Find and highlight matches
+        found = False
+        pos = 0
+        while True:
+            pos = self.textEdit.find(strForFind, pos)
+            if pos == -1:
+                break
+            found = True
+            cursor.setPosition(pos)
+            cursor.movePosition(QTextCursor.Right, 1, len(strForFind))
+            cursor.mergeCharFormat(format)
+            pos += len(strForFind)
+
+        if not found:
+            QMessageBox.information(self, "Search Results", "No matches found")
+
+
 class MyApp(QWidget):
 
     def __init__(self):
@@ -96,11 +146,20 @@ class MyApp(QWidget):
 
         # 입력 창
         self.textField_input = QTextEdit()
+        self.textField_input.setObjectName('textEdit1')
         self.textField_input.setAcceptRichText(False)
 
         # 입력 창2
         self.textField_input2 = QTextEdit()
+        self.textField_input2.setObjectName('textEdit2')
         self.textField_input2.setAcceptRichText(False)
+
+        # 찾기창
+        self.findShortcut1 = QShortcut(QKeySequence('Command + M'), self)
+        self.findShortcut1.activated.connect(self.showFindDialog)
+        
+        self.findShortcut2 = QShortcut(QKeySequence.Find, self)
+        self.findShortcut2.activated.connect(self.showFindDialog)
 
         #출력창
         self.textField_output = QTextBrowser()
@@ -187,7 +246,18 @@ class MyApp(QWidget):
         self.resize(1600, 800)
         self.show()
 
-    def always_on_top(self, aot) :
+    def showFindDialog(self):
+        widget = QApplication.focusWidget()
+        findDialog = None
+        if widget.objectName() == 'textEdit1':
+            findDialog = FindDialog(self.textField_input)
+        elif widget.objectName() == 'textEdit2':
+            findDialog = FindDialog(self.textField_input2)
+
+        if findDialog:
+            findDialog.show()
+
+    def always_on_top(self) :
         self.setWindowFlags(self.windowFlags() ^ Qt.WindowStaysOnTopHint)
         self.show()
 
@@ -215,6 +285,8 @@ class MyApp(QWidget):
         del_text8 = del_text7.replace(' ', '')
         self.textLabel5.setText('공백 포함 : ' + str(len(del_text7)) + ' Character')
         self.textLabel6.setText('공백 제외 : ' + str(len(del_text8)) + ' Character')
+
+        
 
     def append_text(self):
         try :

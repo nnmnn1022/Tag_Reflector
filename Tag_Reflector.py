@@ -353,7 +353,7 @@ class MyApp(QWidget):
 
             else:
                 msg = '⨴No Closing Tag😡⨵'
-                new_text = tag_to_nomal_text(text, miss_start, msg, False)
+                new_text = tag_to_nomal_text(text, miss_end, msg, False)
         # overlap
         else:
             overlap = []
@@ -363,7 +363,7 @@ class MyApp(QWidget):
 
             for tag in tags:
                 if re.search(r'<[bB][rR]\/{0,1}>', tag.group()) : continue
- 
+
                 # 들어온 tag가 여는태그, 닫는태그인지 확인해서 플래그 주기
                 flag2 = False if '/' in tag.group() else True
 

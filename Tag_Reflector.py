@@ -96,33 +96,29 @@ class FindDialog(QDialog):
         self.setWindowTitle("Find")
 
     def findText(self):
+        cursor = self.textEdit.textCursor()
+        cursor.select(QTextCursor.Document)
+        format = QTextCharFormat()
+        format.setBackground(Qt.transparent)
+        cursor.setCharFormat(format)
+        cursor.clearSelection()
+        self.textEdit.setTextCursor(cursor)
+
         strForFind = self.findLineEdit.text()
 
-        # Search for matches in the text edit widget
         cursor = self.textEdit.textCursor()
         format = QTextCharFormat()
-        format.setBackground(QBrush(QColor("yellow")))
-        
-        # Clear any previous selections
+        format.setBackground(Qt.yellow)
         cursor.setPosition(0)
-        cursor.movePosition(QTextCursor.End, 1)
-        cursor.setCharFormat(QTextCharFormat())
-        
-        # Find and highlight matches
-        found = False
-        pos = 0
-        while True:
-            pos = self.textEdit.find(strForFind, pos)
-            if pos == -1:
-                break
-            found = True
-            cursor.setPosition(pos)
-            cursor.movePosition(QTextCursor.Right, 1, len(strForFind))
-            cursor.mergeCharFormat(format)
-            pos += len(strForFind)
-
-        if not found:
-            QMessageBox.information(self, "Search Results", "No matches found")
+        self.textEdit.setTextCursor(cursor)
+        found = self.textEdit.find(strForFind)
+        if found:
+            while self.textEdit.find(strForFind):
+                cursor = self.textEdit.textCursor()
+                cursor.mergeCharFormat(format)
+            self.textEdit.setFocus()
+        else:
+            QMessageBox.information(self, "Search Results", f"{strForFind}에 대한 검색 결과가 없습니다.")
 
 
 class MyApp(QWidget):
@@ -155,11 +151,8 @@ class MyApp(QWidget):
         self.textField_input2.setAcceptRichText(False)
 
         # 찾기창
-        self.findShortcut1 = QShortcut(QKeySequence('Command + M'), self)
-        self.findShortcut1.activated.connect(self.showFindDialog)
-        
-        self.findShortcut2 = QShortcut(QKeySequence.Find, self)
-        self.findShortcut2.activated.connect(self.showFindDialog)
+        self.findShortcut = QShortcut(QKeySequence("Ctrl+F"), self)
+        self.findShortcut.activated.connect(self.showFindDialog)
 
         #출력창
         self.textField_output = QTextBrowser()
@@ -248,14 +241,14 @@ class MyApp(QWidget):
 
     def showFindDialog(self):
         widget = QApplication.focusWidget()
-        findDialog = None
+        self.findDialog = None
         if widget.objectName() == 'textEdit1':
-            findDialog = FindDialog(self.textField_input)
+            self.findDialog = FindDialog(self.textField_input)
         elif widget.objectName() == 'textEdit2':
-            findDialog = FindDialog(self.textField_input2)
+            self.findDialog = FindDialog(self.textField_input2)
 
-        if findDialog:
-            findDialog.show()
+        if self.findDialog:
+            self.findDialog.show()
 
     def always_on_top(self) :
         self.setWindowFlags(self.windowFlags() ^ Qt.WindowStaysOnTopHint)

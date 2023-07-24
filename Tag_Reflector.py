@@ -490,8 +490,8 @@ class MyApp(QWidget):
         left_errors = list(map(lambda x: '⌦' + x[1:-1] + '⌫' , validate_matches(left_tags, right_tags)))
         right_errors = list(map(lambda x: '⌦' + x[1:-1] + '⌫' , validate_matches(right_tags, left_tags)))
         
-        msg1 = f'<br><br> ⨴#오른쪽에 존재하지 않는 태그 목록: {", ".join(left_errors)}⨵'
-        msg2 = f'<br><br> ⨴#왼쪽에 존재하지 않는 태그 목록: {", ".join(right_errors)}⨵'
+        msg1 = f'<br><br> ⨴#오른쪽에 존재하지 않는 태그 목록<br>{",<br>".join(left_errors)}⨵'
+        msg2 = f'<br><br> ⨴#왼쪽에 존재하지 않는 태그 목록<br>{",<br>".join(right_errors)}⨵'
 
         if left_errors: text += msg1
         if right_errors: text2 += msg2
